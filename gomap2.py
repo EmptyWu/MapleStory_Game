@@ -17,7 +17,6 @@ v_thread = None  # 儲存按V的執行緒
 
 # ====== 取得 ChronoStory 視窗位置 ======
 win = gw.getWindowsWithTitle('MapleStory Worlds-ChronoStory')[0]
-win = gw.getWindowsWithTitle('vdi-cvs-118')[0]
 logger.info(f"取得 ChronoStory 視窗位置:{win}")   
 #print("win:", win)
 x, y = win.left, win.top
@@ -116,9 +115,7 @@ def on_f6_press(e):
 def auto_press_v():
     """獨立執行緒：自動每秒按一次 V 鍵"""
     while press_v:
-        pyautogui.keyDown('v')
-        time.sleep(0.1)  # Small delay while key is held down
-        pyautogui.keyUp('v')
+        keyboard.press_and_release('v')
         #print("🔄 自動按下 V 鍵（獨立執行緒）")
         time.sleep(0.5)  # 每秒按一次 V 鍵
 
@@ -173,7 +170,7 @@ while True:
                 if mp_ratio is not None:
                     if mp_ratio < 0.2:
                         # 自動喝水
-                        pyautogui.press('insert')
+                        keyboard.press_and_release('insert')
                         print("🧃 MP 低於 20%，自動按下 Insert！")
                     else:
                         print(f"MP 正常 ({mp_ratio*100:.1f}%)")
@@ -185,7 +182,7 @@ while True:
                 if hp_ratio is not None:
                     if hp_ratio < 0.8:
                         # 自動喝水
-                        pyautogui.press('delete')
+                        keyboard.press_and_release('delete')
                         print("🧃 HP 低於 80%，自動按下 Delete")
                     else:
                         print(f"HP 正常 ({hp_ratio*100:.1f}%)")
@@ -194,7 +191,7 @@ while True:
             # 判斷 get_tool1_position() 是NULL 的時候按下`按鍵
             tool_location=get_tool1_position()  # 偵測 tool1 位置
             if tool_location is None:
-                pyautogui.press('`')
+                keyboard.press_and_release('`')
                 time.sleep(1)  # 等待一秒讓畫面更新
                 print("按下 ` 鍵以嘗試重新顯示工具列")
             else:
