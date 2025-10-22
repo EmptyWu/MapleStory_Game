@@ -6,7 +6,8 @@ import keyboard
 import threading
 from ocr_reader import get_mp_from_image  # ✅ 匯入 EasyOCR 模組
 from src.utils.logger import logger
-from src.utils.common import (GetImgLocation)
+from src.utils.common import (GetImgLocation,find_images_in_folder,is_yellow_on_side)
+from src.utils.discordtool import send_discord_notification
 
 # ====== 全域變數 ======
 running = False  # 控制程式是否執行
@@ -22,23 +23,37 @@ move_direction = 'right'  # 當前移動方向：'right' 或 'left'
 move_duration = 30  # 當找不到邊界圖示時，每次持續移動秒數
 
 # ====== 取得 ChronoStory 視窗位置 ======
-win = gw.getWindowsWithTitle('MapleStory Worlds-ChronoStory')[0]
-logger.info(f"取得 ChronoStory 視窗位置:{win}")   
-win.resizeTo(1785,1004)
-#print("win:", win)
-x, y = win.left, win.top
-logger.info(f"視窗位置 x:{x} y:{y} width:{win.width} height:{win.height}")
-#print("x:", x,"y",y,'width',win.width,'height',win.height)
+try:
+    win_list  = gw.getWindowsWithTitle('MapleStory Worlds-ChronoStory')
+    if not win_list :
+        logger.error("❌ 找不到 ChronoStory 視窗，請確認程式已啟動並登入遊戲！")
+        exit(1)
+    win=win_list[0]
+    logger.info(f"取得 ChronoStory 視窗位置:{win}")   
+    send_discord_notification(f"取得 ChronoStory 視窗位置:{win}","MapleStory Worlds-ChronoStory 自動補血補魔程式",0xFF5733)
+    win.resizeTo(1322,744)
+    x, y = win.left, win.top
+    logger.info(f"視窗位置 x:{x} y:{y} width:{win.width} height:{win.height}")
+    send_discord_notification(f"視窗位置 x:{x} y:{y} width:{win.width} height:{win.height}","MapleStory Worlds-ChronoStory 自動補血補魔程式",0xFF5733)
+except Exception as e:
+    logger.error(f"❌ 取得或調整 ChronoStory 視窗大小時發生錯誤: {e}")
+    exit(1)
+
+
 
 # ====== 在畫面上尋找 MP 標示區域 ======
 def get_mp_ratio():
     """擷取 MP 區域並回傳比值 (0~1)"""
-    MPlocation= GetImgLocation('MP.png','MP2.png')
-    # 
+    try:
+        MPlocation = pyautogui.locateOnScreen('MP.png', confidence=0.6)
+    except pyautogui.ImageNotFoundException:
+        try:
+            MPlocation = pyautogui.locateOnScreen('MP2.png', confidence=0.6)
+        except pyautogui.ImageNotFoundException:
+            MPlocation = None
     
     if MPlocation:
-        MPregion = (int(MPlocation.left), int(MPlocation.top), int(MPlocation.width), int(MPlocation.height))
-        print('MPregion:', MPregion)
+        MPregion = (int(MPlocation.left), int(MPlocation.top), int(MPlocation.width), int(MPlocation.height))        
 
         # 確保 region 是四個整數
         if all(isinstance(i, int) for i in MPregion):
@@ -61,10 +76,10 @@ def get_mp_ratio():
 def get_hp_ratio():
     """擷取 HP 區域並回傳比值 (0~1)"""
     try:
-        HPlocation = pyautogui.locateOnScreen('HP2.png', confidence=0.7)
+        HPlocation = pyautogui.locateOnScreen('HP.png', confidence=0.5)
     except pyautogui.ImageNotFoundException:
         try:
-            HPlocation = pyautogui.locateOnScreen('HP.png', confidence=0.7)
+            HPlocation = pyautogui.locateOnScreen('HP2.png', confidence=0.5)
         except pyautogui.ImageNotFoundException:
             HPlocation = None
     
@@ -124,13 +139,13 @@ def on_f4_press(e):
 def on_f5_press(e):
     global running
     running = True
-    on_f9_press()
+    #on_f9_press()
     print("程式已啟動！按 F6 可暫停")
 
 def on_f6_press(e):
     global running
     running = False    
-    on_f9_press()
+    #on_f9_press()
     print("程式已暫停！按 F5 可重新啟動")
 
 # ====== V 鍵自動按壓函數 ======
@@ -212,43 +227,61 @@ def auto_move():
     last_switch = time.time()
     try:
         while press_move:
+            last_switch = time.time()
             # 嘗試以圖像偵測邊界
-            left_loc, right_loc = find_edge()
-            
+            #left_loc, right_loc = find_edge()
+            # if is_yellow_on_side("minMap.png"):
+            #     logger.info('偵測到右邊界，改為向左移動')
+            #     keyboard.press('alt+left+v+z')
+            #     time.sleep(10)
+            #     keyboard.release('alt+left+v+z')
+            # else:
+            #     logger.info('偵測到左邊界，改為向右移動')
+            #     keyboard.press('alt+right+v+z')
+            #     time.sleep(10)
+            #     keyboard.release('alt+right+v+z')
+
+
+
+            # if is_yellow_on_side("minMap.png"):
+            #     if move_direction=='right':
+            #         move_direction='left'
+            #     else:
+            #         move_direction='right'
 
             if move_direction == 'right':
-                # 若偵測到右邊界，則轉向
-                if right_loc is not None:
-                    print('偵測到右邊界，改為向左移動')
-                    keyboard.press('alt+right+v+z')
-                    time.sleep(5)
-                    keyboard.release('alt+right+v+z')
-                    move_direction = 'left'
-                    last_switch = time.time()
-                    continue
-                # 向右按下並保持短暫
-                keyboard.press('alt+right+v+z')
-                time.sleep(3)
-                keyboard.release('alt+right+v+z')
+            #     # 若偵測到右邊界，則轉向
+            #     if not is_yellow_on_side("minMap.png"):
+            #         print('偵測到右邊界，改為向左移動')
+            #         keyboard.press('alt+right+v+z')
+            #         time.sleep(5)
+            #         keyboard.release('alt+right+v+z')
+                move_direction = 'left'
+            #         last_switch = time.time()
+            #         continue
+            #     # 向右按下並保持短暫
+                keyboard.press('right+v+z')
+                time.sleep(10)
+                keyboard.release('right+v+z')
             else:
-                # move_direction == 'left'
-                if left_loc is not None:
-                    print('偵測到左邊界，改為向右移動')
-                    keyboard.press('alt+left+v+z')
-                    time.sleep(5)
-                    keyboard.release('alt+left+v+z')
-                    move_direction = 'right'
-                    last_switch = time.time()
-                    continue
-                keyboard.press('alt+left+v+z')
-                time.sleep(3)
-                keyboard.release('alt+left+v+z')
+            #     # move_direction == 'left'
+            #     if  is_yellow_on_side("minMap.png"):
+            #         print('偵測到左邊界，改為向右移動')
+            #         keyboard.press('alt+left+v+z')
+            #         time.sleep(5)
+            #         keyboard.release('alt+left+v+z')
+                move_direction = 'right'
+            #         last_switch = time.time()
+            #         continue
+                keyboard.press('left+v+z')
+                time.sleep(10)
+                keyboard.release('left+v+z')
 
             # 如果超過 move_duration 秒沒有偵測到邊界，則反向（time-based fallback）
-            if time.time() - last_switch >= move_duration:
-                move_direction = 'left' if move_direction == 'right' else 'right'
-                print(f'超過 {move_duration}s，時間回退反向為 {move_direction}')
-                last_switch = time.time()
+            # if time.time() - last_switch >= move_duration:
+            #     move_direction = 'left' if move_direction == 'right' else 'right'
+            #     print(f'超過 {move_duration}s，時間回退反向為 {move_direction}')
+            #     last_switch = time.time()
 
             # 小停頓，避免佔滿 CPU
             time.sleep(1)
@@ -265,13 +298,13 @@ def on_f9_press():
     global press_move, move_thread, move_direction
     press_move = not press_move
     if press_move:
-        print('🟢 自動左右移動：開啟')
+        logger.info('🟢 自動左右移動：開啟')
         # 啟動移動執行緒
         move_thread = threading.Thread(target=auto_move)
         move_thread.daemon = True
         move_thread.start()
     else:
-        print('🔴 自動左右移動：關閉')
+        logger.info('🔴 自動左右移動：關閉')
         # move_thread 會在下一次迴圈檢查 press_move 後結束
 
 # 註冊熱鍵
@@ -296,14 +329,14 @@ def check_minimap_for_red(sample_step=8, red_threshold=200):
     """
     try:
         #抓小地圖位置
-        SMaplocation= GetImgLocation('hasotherman.png','hasotherman2.png')
-        # 
+        SMaplocation= find_images_in_folder()
         
         if SMaplocation:
+            logger.info(f"小地圖位置:{SMaplocation}")
             SMapregion = (int(SMaplocation.left), int(SMaplocation.top), int(SMaplocation.width), int(SMaplocation.height))
             if all(isinstance(i, int) for i in SMapregion):
                 img = pyautogui.screenshot(region=SMapregion)
-                img.save("SMap.png")  # 可選：儲存擷取畫面
+                img.save("minMap.png")  # 可選：儲存擷取畫面
                 
                 px = img.load()
                 w, h = img.size
@@ -313,9 +346,8 @@ def check_minimap_for_red(sample_step=8, red_threshold=200):
                         if r >= red_threshold and g < (red_threshold // 2) and b < (red_threshold // 2):
                             return True
                 return False
-                return ratio
             else:
-                #print("region 格式錯誤")
+                logger.info("小地圖抓取失敗")
                 return None
     except Exception:
         return False
@@ -349,21 +381,21 @@ print("按 Ctrl+Q 退出程式")
 
 while True:
     try:
+        # 每次迴圈先檢查小地圖是否有紅點，若有則暫停所有自動功能
+        # try:
+        #     red_found = check_minimap_for_red()
+        # except Exception:
+        #     red_found = False
         if running:
-            # 每次迴圈先檢查小地圖是否有紅點，若有則暫停所有自動功能
-            try:
-                red_found = check_minimap_for_red()
-            except Exception:
-                red_found = False
-
-            if red_found and not paused_by_red:
-                paused_by_red = True
-                print("偵測到小地圖紅點，透過 F6 暫停程式，並跳出主迴圈")
-                on_f6_press(None)  # 直接呼叫 F6 的處理函式來暫停
-                time.sleep(1)
-                # 這邊可以控制抓取圖片同的位置點選滑鼠左鍵
-                gotoTrade()
-                break
+            # if red_found and not paused_by_red:
+            #     paused_by_red = True
+            #     print("偵測到小地圖紅點，透過 F6 暫停程式，並跳出主迴圈")
+            #     send_discord_notification("偵測到小地圖紅點，程式已自動暫停！","MapleStory Worlds-ChronoStory 自動補血補魔程式",0xFF0000)
+            #     on_f6_press(None)  # 直接呼叫 F6 的處理函式來暫停
+            #     time.sleep(1)
+            #     # 這邊可以控制抓取圖片同的位置點選滑鼠左鍵
+            #     #gotoTrade()
+            #     break
            
 
             if check_mp:
@@ -372,11 +404,11 @@ while True:
                     if mp_ratio < 0.2:
                         # 自動喝水
                         keyboard.press_and_release('insert')
-                        print("🧃 MP 低於 20%，自動按下 Insert！")
+                        logger.info("🧃 MP 低於 20%，自動按下 Insert！")
                     else:
-                        print(f"MP 正常 ({mp_ratio*100:.1f}%)")
+                        logger.info(f"MP 正常 ({mp_ratio*100:.1f}%)")
                 else:
-                    print("⚠️ 無法取得 MP 值")
+                    logger.info("⚠️ 無法取得 MP 值")
 
             if check_hp:
                 hp_ratio = get_hp_ratio()    
@@ -384,11 +416,11 @@ while True:
                     if hp_ratio < 0.8:
                         # 自動喝水
                         keyboard.press_and_release('delete')
-                        print("🧃 HP 低於 80%，自動按下 Delete")
+                        logger.info("🧃 HP 低於 80%，自動按下 Delete")
                     else:
-                        print(f"HP 正常 ({hp_ratio*100:.1f}%)")
+                        logger.info(f"HP 正常 ({hp_ratio*100:.1f}%)")
                 else:
-                    print("⚠️ 無法取得 HP 值")
+                    logger.info("⚠️ 無法取得 HP 值")
             
             # 定期按下 Z 鍵保持角色活躍：改為每 10 秒按一次
             #keyboard.press_and_release('z')
